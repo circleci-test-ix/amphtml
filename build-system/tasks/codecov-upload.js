@@ -19,6 +19,7 @@ const colors = require('ansi-colors');
 const fs = require('fs-extra');
 const log = require('fancy-log');
 const {
+  isCircleBuild,
   isTravisBuild,
   isTravisPullRequestBuild,
   travisCommitSha,
@@ -56,7 +57,7 @@ function uploadReport(file, flags) {
  * jobs.
  */
 async function codecovUpload() {
-  if (!isTravisBuild()) {
+  if (!isTravisBuild() || isCircleBuild()) {
     log(
       yellow('WARNING:'),
       'Code coverage reports can only be uploaded by Travis builds.'
