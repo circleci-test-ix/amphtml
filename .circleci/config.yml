@@ -15,8 +15,8 @@ commands:
         default: []
     steps:
       - checkout
-#       - restore_cache:
-#           key: deps-v1d-{{ .Environment.CIRCLE_JOB }}
+      - restore_cache:
+          key: dependencies-{{ .Environment.CIRCLE_JOB }}
       - run:
           name: Install Dependencies
           command: |
@@ -35,19 +35,16 @@ commands:
             # Import the Google Cloud Platform public key
             curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 
-            # Install Python, Java and other dependencies
-            sudo apt update 
-            #sudo apt install -y python-pip expect-dev google-cloud-sdk openssl protobuf-compiler default-jdk        
+            # Install Java and other dependencies
+            sudo apt update             
             sudo apt install -y expect-dev google-cloud-sdk openssl protobuf-compiler default-jdk        
-
-            # Set the Java memory limit to avoid server disconnect errors
-            #echo 'export _JAVA_OPTIONS=-Xmx3g' >> $BASH_ENV
+            
             pip install --user protobuf
             sudo yarn global add gulp-cli
             yarn
       - steps: << parameters.scripts >>
       - save_cache:
-          key: deps-v1d-{{ .Environment.CIRCLE_JOB }}
+          key: dependencies-{{ .Environment.CIRCLE_JOB }}
           paths:
             - node_modules
             - build-system/tasks/e2e/node_modules
@@ -74,25 +71,7 @@ test_requires: &test_requires
     - validator_tests
     - dist_bundle_size
 
-jobs:
-  debug:
-    executor: default-executor
-    steps:
-    - default-build-steps:
-        scripts:
-          - run: |
-              #unbuffer node build-system/pr-check/e2e-tests.js
-              #ps -ef
-
-              #unbuffer node build-system/pr-check/single-pass-tests.js
-              #unbuffer node build-system/pr-check/visual-diff-tests.js
-              #unbuffer node build-system/pr-check/local-tests.js
-              # allow failures
-              unbuffer node build-system/pr-check/remote-tests.js
-              build-system/sauce_connect/stop_sauce_connect.sh
-              #unbuffer node build-system/pr-check/e2e-tests.js
-              ps -ef
-  
+jobs:  
   build:
     executor: default-executor
     steps:
@@ -148,6 +127,7 @@ jobs:
     - default-build-steps:
         scripts:
           - run: |
+              # TODO - There are 5 failing tests but they are non-blocking, so allow this step to pass for now
               unbuffer node build-system/pr-check/remote-tests.js || true
               build-system/sauce_connect/stop_sauce_connect.sh
               ps -ef
@@ -158,6 +138,7 @@ jobs:
     - default-build-steps:
         scripts:
           - run: |
+              # TODO - There are 12 failing tests but they are non-blocking, so allow this step to pass for now
               unbuffer node build-system/pr-check/e2e-tests.js || true
               ps -ef      
               
@@ -165,7 +146,6 @@ workflows:
   version: 2
   build:
     jobs:
-#      - debug
       - build:
           <<: *branch_filters
       - checks:
