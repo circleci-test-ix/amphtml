@@ -87,8 +87,8 @@ jobs:
               #unbuffer node build-system/pr-check/single-pass-tests.js
               #unbuffer node build-system/pr-check/visual-diff-tests.js
               #unbuffer node build-system/pr-check/local-tests.js
-              set +e
-              unbuffer node build-system/pr-check/remote-tests.js || true # allow failures
+              # allow failures
+              unbuffer node build-system/pr-check/remote-tests.js || true
               build-system/sauce_connect/stop_sauce_connect.sh
               #unbuffer node build-system/pr-check/e2e-tests.js
               ps -ef
