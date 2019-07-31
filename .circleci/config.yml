@@ -1,0 +1,186 @@
+version: 2.1
+
+executors:
+  default-executor:
+    working_directory: ~/amphtml
+    resource_class: medium+
+    docker:
+      - image: circleci/python:2.7-stretch-node-browsers
+      
+commands:
+  default-build-steps:
+    parameters:
+      scripts:
+        type: steps
+        default: []
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-v1d-{{ .Environment.CIRCLE_JOB }}
+      - run:
+          name: Install Dependencies
+          command: |
+            # Update hosts file
+            echo ads.localhost | sudo tee -a /etc/hosts  
+            echo iframe.localhost | sudo tee -a /etc/hosts
+            # CURLs amp subdomain for the amp-recaptcha-input integration test. The hash
+            # is the CURLS subdomain for localhost:9876
+            echo jgla3zmib2ggq5buc4hwi5taloh6jlvzukddfr4zltz3vay5s5rq.recaptcha.localhost | sudo tee -a /etc/hosts
+            # Requested by some tests because they need a valid font host,
+            # but should not resolve in tests.
+            echo fonts.googleapis.com | sudo tee -a /etc/hosts
+
+            # Get repo for google-cloud-sdk
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+            # Import the Google Cloud Platform public key
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+
+            # Install Python, Java and other dependencies
+            sudo apt update 
+            #sudo apt install -y python-pip expect-dev google-cloud-sdk openssl protobuf-compiler default-jdk        
+            sudo apt install -y expect-dev google-cloud-sdk openssl protobuf-compiler default-jdk        
+
+            # Set the Java memory limit to avoid server disconnect errors
+            echo 'export _JAVA_OPTIONS=-Xmx3g' >> $BASH_ENV
+            pip install --user protobuf
+            sudo yarn global add gulp-cli
+            yarn
+      - steps: << parameters.scripts >>
+      - save_cache:
+          key: deps-v1d-{{ .Environment.CIRCLE_JOB }}
+          paths:
+            - node_modules
+            - build-system/tasks/e2e/node_modules
+            - build-system/tasks/visual-diff/node_modules
+            - sauce_connect
+            - validator/node_modules
+            - validator/nodejs/node_modules
+            - validator/webui/node_modules
+            - /home/circleci/.cache/pip
+
+branch_filters: &branch_filters
+  filters:
+    branches:
+      only:
+        - master
+        - release
+        - canary
+        - /^amp-release-.*$/
+
+test_requires: &test_requires  
+  requires:
+    - build
+    - checks
+    - validator_tests
+    - dist_bundle_size
+
+jobs:
+  debug:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: |
+              #unbuffer node build-system/pr-check/e2e-tests.js
+              #ps -ef
+
+              #unbuffer node build-system/pr-check/single-pass-tests.js
+              #unbuffer node build-system/pr-check/visual-diff-tests.js
+              #unbuffer node build-system/pr-check/local-tests.js
+              set +e
+              unbuffer node build-system/pr-check/remote-tests.js || true # allow failures
+              build-system/sauce_connect/stop_sauce_connect.sh
+              #unbuffer node build-system/pr-check/e2e-tests.js
+              ps -ef
+  
+  build:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/build.js
+      
+  checks:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/checks.js
+      
+  validator_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/validator-tests.js
+      
+  dist_bundle_size:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/dist-bundle-size.js
+      
+  single_pass_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/single-pass-tests.js
+      
+  visual_diff_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/visual-diff-tests.js
+      
+  local_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: unbuffer node build-system/pr-check/local-tests.js
+      
+  remote_sauce_labs_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: |
+              unbuffer node build-system/pr-check/remote-tests.js
+              build-system/sauce_connect/stop_sauce_connect.sh
+              ps -ef
+      
+  end_to_end_tests:
+    executor: default-executor
+    steps:
+    - default-build-steps:
+        scripts:
+          - run: |
+              unbuffer node build-system/pr-check/e2e-tests.js
+              ps -ef      
+              
+workflows:
+  version: 2
+  build:
+    jobs:
+     - debug
+#       - build:
+#           <<: *branch_filters
+#       - checks:
+#           <<: *branch_filters      
+#       - validator_tests:
+#           <<: *branch_filters
+#       - dist_bundle_size:
+#           <<: *branch_filters
+#       - single_pass_tests:
+#           <<: *test_requires
+#       - visual_diff_tests:
+#           <<: *test_requires
+#       - visual_diff_tests:
+#           <<: *test_requires
+#       - remote_sauce_labs_tests:
+#           <<: *test_requires
+#       - end_to_end_tests:
+#           <<: *test_requires    
