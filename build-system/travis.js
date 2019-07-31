@@ -70,8 +70,8 @@ function travisBuildNumber() {
     );
   }
   //return process.env.TRAVIS_BUILD_NUMBER;
-  //return process.env.CIRCLE_WORKFLOW_ID;
-  return '1ed8b5c5-855e-4846-a317-c92c776a5c4b';
+  return process.env.CIRCLE_WORKFLOW_ID;
+  //return '1ed8b5c5-855e-4846-a317-c92c776a5c4b';
 }
 
 /**
