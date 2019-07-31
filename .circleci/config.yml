@@ -41,7 +41,7 @@ commands:
             sudo apt install -y expect-dev google-cloud-sdk openssl protobuf-compiler default-jdk        
 
             # Set the Java memory limit to avoid server disconnect errors
-            echo 'export _JAVA_OPTIONS=-Xmx3g' >> $BASH_ENV
+            #echo 'export _JAVA_OPTIONS=-Xmx3g' >> $BASH_ENV
             pip install --user protobuf
             sudo yarn global add gulp-cli
             yarn
