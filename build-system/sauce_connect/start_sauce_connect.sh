@@ -83,10 +83,10 @@ if [[ -f "$OUTPUT_FILE" ]]; then
 fi
 
 # Establish the tunnel identifier (job number on Travis / username during local dev).
-if [[ -z "$TRAVIS_JOB_NUMBER" ]]; then
+if [[ -z "$CIRCLE_BUILD_NUM" ]]; then
   TUNNEL_IDENTIFIER="$(git log -1 --pretty=format:"%ae")"
 else
-  TUNNEL_IDENTIFIER="$TRAVIS_JOB_NUMBER"
+  TUNNEL_IDENTIFIER="$CIRCLE_BUILD_NUM"
 fi
 
 
